@@ -26,6 +26,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Autowired
 	private UserDetailsServiceImpl userDetailsService;
 
+	@Autowired
+	private AuthEntryPointJwt authEntryPointJwt;
+
 
 
 	@Bean
@@ -33,7 +36,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	public AuthenticationManager authenticationManager() throws Exception {
 		return super.authenticationManager();
 	}
-
+// 1234 -> md5 formatın encode -> db kayıt
+//	md5 -> string jwt olusturken
 	@Autowired
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
@@ -43,7 +47,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 
 		http.cors().and().csrf().disable()
-				.exceptionHandling().authenticationEntryPoint().and()
+				.exceptionHandling().authenticationEntryPoint(authEntryPointJwt).and()
 				.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
 				.authorizeHttpRequests().antMatchers("/demo/**").permitAll()
 				.antMatchers("/api/test/**").permitAll()
