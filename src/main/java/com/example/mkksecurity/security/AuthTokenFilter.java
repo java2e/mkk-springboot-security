@@ -54,6 +54,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 		filterChain.doFilter(request,response);
 
 	}
+
+	// OKTA -OaUTH saml sso
 	// "Bearer SAasdadkad2324aksjdaskjdakd"
 	private String parseJwt(HttpServletRequest request) {
 		String headerAuth = request.getHeader("Authorization");
