@@ -7,16 +7,21 @@ import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 
+import com.example.mkksecurity.aop.ExecutionTime;
 import com.example.mkksecurity.models.ERole;
+import com.example.mkksecurity.models.RefreshToken;
 import com.example.mkksecurity.models.Role;
 import com.example.mkksecurity.models.User;
 import com.example.mkksecurity.payload.request.LoginRequest;
 import com.example.mkksecurity.payload.request.SignupRequest;
+import com.example.mkksecurity.payload.request.TokenRefreshRequest;
 import com.example.mkksecurity.payload.response.JwtResponse;
 import com.example.mkksecurity.payload.response.MessageResponse;
+import com.example.mkksecurity.payload.response.TokenRefreshResponse;
 import com.example.mkksecurity.repository.RoleRepository;
 import com.example.mkksecurity.repository.UserRepository;
 import com.example.mkksecurity.security.JwtUtils;
+import com.example.mkksecurity.service.RefreshTokenService;
 import com.example.mkksecurity.service.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +56,9 @@ public class AuthController {
 	@Autowired
 	JwtUtils jwtUtils;
 
+	@Autowired
+	private RefreshTokenService refreshTokenService;
+
 	@PostMapping("/signin")
 	public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
 
@@ -65,7 +73,9 @@ public class AuthController {
 				.map(item -> item.getAuthority())
 				.collect(Collectors.toList());
 
-		return ResponseEntity.ok(new JwtResponse(jwt,
+		RefreshToken refreshToken =refreshTokenService.createRefreshToken(userDetails.getId());
+
+		return ResponseEntity.ok(new JwtResponse(jwt,refreshToken.getToken(),
 				userDetails.getId(),
 				userDetails.getUsername(),
 				userDetails.getEmail(),
@@ -73,6 +83,7 @@ public class AuthController {
 	}
 
 	@PostMapping("/signup")
+	@ExecutionTime
 	public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
 		if (userRepository.existsByUsername(signUpRequest.getUsername())) {
 			return ResponseEntity
@@ -102,5 +113,25 @@ public class AuthController {
 		userRepository.save(user);
 
 		return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+	}
+
+	@ExecutionTime
+	@PostMapping("/refreshToken")
+	public ResponseEntity<?> refreshToken(@Valid @RequestBody TokenRefreshRequest tokenRefreshRequest) {
+
+		String requestRefreshToken = tokenRefreshRequest.getRefreshToken();
+
+		RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken);
+
+		if(refreshToken != null && refreshTokenService.verifyExpritation(refreshToken) !=null) {
+
+			String token = jwtUtils.generateJwtTokenWithUsername(refreshToken.getUser().getUsername());
+			return ResponseEntity.ok(new TokenRefreshResponse(token,requestRefreshToken));
+
+		}
+		else {
+			return ResponseEntity.badRequest().body("Refresh token is not in database!");
+		}
+
 	}
 }
