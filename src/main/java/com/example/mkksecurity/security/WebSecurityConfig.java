@@ -16,32 +16,36 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 
+
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(
-		prePostEnabled = true
-)
+		// securedEnabled = true,
+		// jsr250Enabled = true,
+		prePostEnabled = true)
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
-
+	@Autowired
+	UserDetailsServiceImpl userDetailsService;
 
 	@Autowired
-	private UserDetailsServiceImpl userDetailsService;
+	private AuthEntryPointJwt unauthorizedHandler;
 
-	@Autowired
-	private AuthEntryPointJwt authEntryPointJwt;
+	@Bean
+	public AuthTokenFilter authenticationJwtTokenFilter() {
+		return new AuthTokenFilter();
+	}
 
-	@Autowired
-	private AuthTokenFilter authTokenFilter;
-
-
+	@Override
+	public void configure(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception {
+		authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
+	}
 
 	@Bean
 	@Override
-	public AuthenticationManager authenticationManager() throws Exception {
-		return super.authenticationManager();
+	public AuthenticationManager authenticationManagerBean() throws Exception {
+		return super.authenticationManagerBean();
 	}
-// 1234 -> md5 formatın encode -> db kayıt
-//	md5 -> string jwt olusturken
+
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
@@ -49,20 +53,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-
 		http.cors().and().csrf().disable()
-				.exceptionHandling().authenticationEntryPoint(authEntryPointJwt).and()
+				.exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
 				.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-				.authorizeHttpRequests().antMatchers("/api/auth/**").permitAll()
+				.authorizeRequests().antMatchers("/api/auth/**").permitAll()
 				.antMatchers("/api/test/**").permitAll()
 				.anyRequest().authenticated();
 
-		http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
-
-	}
-
-	@Override
-	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-		auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
+		http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 	}
 }
